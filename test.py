@@ -9,8 +9,18 @@ token = util.prompt_for_user_token(auth.USERNAME, auth.SCOPE, client_id=auth.CLI
                                    client_secret=auth.CLIENT_SECRET, redirect_uri=auth.REDIRECT_URI)
 sp = spotipy.Spotify(auth=token)
 
-results = sp.current_user_recently_played(limit=3)
-print("Last 10 songs you listened to:\n")
+# Gets paginated results from playlist track list
+def getPlaylistTracks(username, id):
+    results = sp.user_playlist_tracks(username, id)
+    tracks = results['items']
+    while results['next']:
+        results = sp.next(results)
+        tracks.extend(results['items'])
+    return tracks
 
-for track in results['items']:
-    print("TrackID: " + str(track['played_at']))
+all_songs = getPlaylistTracks('oh_snap272', '7mJPrlhbnS7ZrWVXO8eWuR')
+
+for song in all_songs:
+    print(song['added_at'])
+    date_song = dateutil.parser.parse(song['added_at'])
+    print(date_song.__str__())
