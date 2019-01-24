@@ -129,16 +129,16 @@ def findLeastListened():
     lowest_track_id = None
 
     for track in playlist_data:
-        date_added = track['date_added']
-        time_delta = datetime.now() - date_added
+        date_added = playlist_data[track]['date_added']
+        time_delta = datetime.now(timezone.utc) - date_added
 
         # Don't remove songs if they have been in the playlist for less than 2 weeks
-        if time_delta.days > 14:
-            listen_ratio = track['listen_count'] / float(time_delta.days)
+        if time_delta.days > 0:
+            listen_ratio = playlist_data[track]['listen_count'] / float(time_delta.days)
 
             if listen_ratio < lowest_ratio:
                 lowest_ratio = listen_ratio
-                lowest_track_id = track['track_id']
+                lowest_track_id = track
 
     print("Removing track: " + lowest_track_id + " Ratio: " + str(lowest_ratio))
     return lowest_track_id
@@ -149,6 +149,8 @@ def trimPlaylist():
         playlist_db = TinyDB('playlist_data.json')
         track = []
         track_id = findLeastListened()
+        if track_id == None:
+            return
         track.append(track_id)
 
         # Remove the song from the playlist, dict, and database
