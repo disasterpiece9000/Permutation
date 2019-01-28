@@ -60,12 +60,16 @@ def readPlaylistData():
     print('Playlist data read from file\n')
 
 # Check for new songs added to playlist
-def checkNewSongs():
+def checkSongs():
     # Get updated tracklist
     current_playlist = getPlaylistTracks()
 
+    # Store a list of track IDs in current playlist
+    current_tracks = []
+
     for track in current_playlist:
         track_id = track['track']['id']
+        current_tracks.append(track_id)
 
         # If the track is not in the stored tracklist, then add it
         if track_id not in playlist_data:
@@ -80,6 +84,16 @@ def checkNewSongs():
                                 'listen_count': listen_count})
 
             print('New track: ' + track_id + ' found in playlist')
+
+    for track_id in list(playlist_data):
+        # If the track in the stored list is not in the new list, then remove it
+        if track_id not in current_tracks:
+            playlist_db = TinyDB('playlist_data.json')
+
+            del playlist_data[track_id]
+            playlist_db.remove(find_stuff.track_id == track_id)
+
+            print('Removed track from playlist: ' + track_id)
 
 
 # Gets paginated results from playlist track list
@@ -173,7 +187,7 @@ last_listen_time = datetime.now(timezone.utc)
 while(True):
     try:
         last_listen_time = checkRecentlyPlayed(last_listen_time)
-        checkNewSongs()
+        checkSongs()
         trimPlaylist()
         time.sleep(10)
 
