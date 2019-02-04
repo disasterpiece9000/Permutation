@@ -4,11 +4,12 @@ from tinydb import TinyDB, Query
 import configparser
 from datetime import datetime, date, timezone
 import dateutil.parser
+from track import Track
 
 # Read authentication information from ini file
-config = configparser.ConfigParser()
-config.read('auth.ini')
-auth = config['AUTH']
+auth_config = configparser.ConfigParser()
+auth_config.read('auth.ini')
+auth = auth_config['AUTH']
 
 CLIENT_ID = auth['CLIENT_ID']
 CLIENT_SECRET = auth['CLIENT_SECRET']
@@ -16,28 +17,37 @@ REDIRECT_URI = auth['REDIRECT_URI']
 SCOPE = auth['SCOPE']
 
 class User:
-    def __init__(user, username, playlist_uri, backup_uri):
-        user.USERNAME = username
+    def __init__(user, username):
+        # User preferences
+        user_config = configparser.ConfigParser()
+        user_config.read("users/" + username + "/settings.ini")
 
-        # Target playlists
-        user.playlist_uri = playlist_uri  # Main playlist: User adds, bot removes
-        user.backup_uri = backup_uri      # Backup playlist: Once removed, bot adds
+        # Account information
+        accnt_info = user_config['ACCNT_INFO']
+        user.username = accnt_info['username']
+        user.playlist_uri = accnt_info['main_playlist']
+        user.backup_uri = accnt_info['backup_playlist']
+
+        # User settings
+        settings_info = user_config['SETTINGS']
+        user.song_cap = int(settings_info['song_cap'])
+        user.min_days = int(settings_info['min_days'])
+
+        # Playlist data
+        user.playlist_data = {}
+        user.readPlaylistData
+        user.playlist_db = TinyDB("users/" + user.username + "/" + user.username + "_data.json")
 
         # Store the timestamp of the last song processed
         user.last_listen_time = datetime.now(timezone.utc)
 
-        # User playlist info
-        user.playlist_data = {}
-        user.readPlaylistData
-        user.playlist_db = TinyDB(user.USERNAME + '_data.json')
+        print("Created user: " + user.username)
 
-    # Userorize for the account specified in the user.py file
+    # Authorize for the account specified in the user.py file
     def getToken(user):
-        token = util.prompt_for_user_token(user.USERNAME, SCOPE, client_id=CLIENT_ID,
+        token = util.prompt_for_user_token(user.username, SCOPE, client_id=CLIENT_ID,
                                            client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI)
         user_token = spotipy.Spotify(auth=token)
-
-        print('Got token\n')
         return user_token
 
     # Read existing playlist and store the data in a nested dict
@@ -45,25 +55,6 @@ class User:
         user.playlist_data.clear()
 
         for track in user.playlist_db:
-            user.playlist_data[track['track_id']] = {'date_added': dateutil.parser.parse(track['date_added']),
-                                                'listen_count': track['listen_count']}
-
-        print('Playlist data read from file\n')
-
-    # Read the playlist info and store the tracks in a nested dict/json file
-    def initializePlaylist(user):
-        user.playlist_data.clear()
-        user.playlist_db.purge()
-
-        playlist = getPlaylistTracks()
-        for track in playlist:
-            track_id = track['track']['id']
-            date_added = dateutil.parser.parse(track['added_at'])
-            listen_count = 0
-
-            playlist_data[track_id] = {'date_added': date_added, 'listen_count': listen_count}
-
-            playlist_db.insert({'track_id': track_id, 'date_added': date_added.__str__(),
-                                'listen_count': listen_count})
-
-        print('Database generated for playlist\n')
+            user.playlist_data[track['track_id']] = Track(track['track_id'], dateutil.parser.parse(track['date_added']),
+                                                          track['name'], track['artist'], track['album'],
+                                                          track['listen_count'])

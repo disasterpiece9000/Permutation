@@ -1,26 +1,27 @@
 import spotipy
 import spotipy.util as util
-from auth import Auth
+from user import User
 import dateutil.parser
+import configparser
 
-# Authorize for the account specified in the auth.py file
-auth = Auth()
-token = util.prompt_for_user_token(auth.USERNAME, auth.SCOPE, client_id=auth.CLIENT_ID,
-                                   client_secret=auth.CLIENT_SECRET, redirect_uri=auth.REDIRECT_URI)
+# Read authentication information from ini file
+auth_config = configparser.ConfigParser()
+auth_config.read('auth.ini')
+auth = auth_config['AUTH']
+
+CLIENT_ID = auth['CLIENT_ID']
+CLIENT_SECRET = auth['CLIENT_SECRET']
+REDIRECT_URI = auth['REDIRECT_URI']
+SCOPE = auth['SCOPE']
+
+token = util.prompt_for_user_token('oh_snap272', SCOPE, client_id=CLIENT_ID,
+                                   client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI)
 sp = spotipy.Spotify(auth=token)
 
 # Gets paginated results from playlist track list
-def getPlaylistTracks(username, id):
-    results = sp.user_playlist_tracks(username, id)
-    tracks = results['items']
-    while results['next']:
-        results = sp.next(results)
-        tracks.extend(results['items'])
-    return tracks
+results = sp.user_playlist_tracks('oh_snap272', '7mJPrlhbnS7ZrWVXO8eWuR')
+tracks = results['items']
 
-all_songs = getPlaylistTracks('oh_snap272', '7mJPrlhbnS7ZrWVXO8eWuR')
-
-for song in all_songs:
-    print(song['added_at'])
-    date_song = dateutil.parser.parse(song['added_at'])
-    print(date_song.__str__())
+for track in tracks:
+    print(track['track']['name'])
+    print(track['track']['album']['name'])
