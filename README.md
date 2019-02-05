@@ -13,7 +13,7 @@ ___
 
 ## Configuration:
 Create a file called settings.ini with the following settings filled in
-'''
+```
 [ACCNT_INFO]
 username = someuser
 # URI of the playlist that will be managed by the program
@@ -26,4 +26,4 @@ backup_playlist = BACKUP PLAYLIST URI
 song_cap = 150
 # Number of days a song is in the main playlist before it can be removed
 min_days = 14
-'''
+```
