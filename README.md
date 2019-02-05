@@ -16,6 +16,8 @@ ___
 * **No cap mode** - If you're not concerned about the size of your playlist, then you will be able confirgure Permutation to only remove songs once they cross below a certain threshold of listens per day.
 * **???** - Why do I have to come up with all the ideas? I want to hear what you people want!
 
+____
+
 ## Configuration:
 Create a file called settings.ini with the following text and fill in the fields:
 ```
@@ -32,3 +34,9 @@ song_cap =
 # Number of days a song is in the main playlist before it can be removed
 min_days = 
 ```
+### What goes where?
+* **username** - Your username or your account's URI link
+* **main_playlist** - Your main playlist's ID or URI link
+* **backup_playlist** - Your secondary playlist's ID or URI link. This can also be set to None to disable.
+* **song_cap** - Any number greater than 0
+* **min_days** - Any number. This can also be set to 0 to disable.
