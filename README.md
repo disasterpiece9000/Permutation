@@ -1,7 +1,7 @@
 # Permutation
 ### Automating the perfect Spotify playlist
 
-Permutation will automatically remove the least listened to songs in your playlist. Simply select a playlist and a song cap. When you find a new song you like, just add it to the playlist. Permutation will automatically replace your least listened to song with the new one. This ensures that your playlist will stay fresh, while not letting it grow out of control.
+Permutation will automatically remove the least listened to songs in your playlist. Simply select a playlist and a song cap. When you find a new song you like, just add it to the playlist. Permutation will automatically replace your least listened to song with the new one. This ensures that your playlist will always be fresh, while not letting it grow out of control.
 
 ___
 
