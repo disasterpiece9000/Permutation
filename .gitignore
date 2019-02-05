@@ -5,3 +5,4 @@ playlist_data.json
 auth.ini
 *.json
 test.py
+*.ini

@@ -112,7 +112,7 @@ def checkRecentlyPlayed(user):
 
 # Log songs listened to
 def logListen(user, track_dict):
-    track_id = track['track']['id']
+    track_id = track_dict['track']['id']
     track = user.playlist_data[track_id]
 
     # Increment listen count
@@ -157,8 +157,9 @@ def trimPlaylist(user):
         user.playlist_db.remove(find_stuff.track_id == track_id)
 
         # Add the song to a backup playlist
-        sp.user_playlist_add_tracks(user.username, user.backup_uri, track)
-        print("Track added to secondary playlist")
+        if user.backup_uri != "None" and user.backup_uri != None:
+            sp.user_playlist_add_tracks(user.username, user.backup_uri, track)
+            print("Track added to secondary playlist")
 
 
 # Main method
@@ -168,6 +169,7 @@ if sys.argv[1] == "init":
     for user in all_users:
         # If the user has been created, initialize the playlist data
         if user.username.lower() == target_user.lower():
+            sp = user.getToken()
             initializePlaylist(user)
             print(user.username + " was initialized\nExiting now...")
             sys.exit(0)

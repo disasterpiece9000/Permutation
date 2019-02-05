@@ -16,6 +16,16 @@ CLIENT_SECRET = auth['CLIENT_SECRET']
 REDIRECT_URI = auth['REDIRECT_URI']
 SCOPE = auth['SCOPE']
 
+# Trim non-essential info in URI
+def getURI(uri, delimeter_num):
+    # Split URI by ':'
+    # delimeter_num ensures that parts[-1] returns the target index of the delimeter
+    parts = uri.split(":", delimeter_num)
+    # Get the index of the last delimeter
+    index = len(uri) - len(parts[-1])
+    # Trim the string and return the formatted URI
+    return uri[index:]
+
 class User:
     def __init__(user, username):
         # User preferences
@@ -24,9 +34,22 @@ class User:
 
         # Account information
         accnt_info = user_config['ACCNT_INFO']
-        user.username = accnt_info['username']
-        user.playlist_uri = accnt_info['main_playlist']
-        user.backup_uri = accnt_info['backup_playlist']
+
+        # Get info and trim if required
+        if ":" in accnt_info['username']:
+            user.username = getURI(accnt_info['username'], 3)
+        else:
+            user.username = accnt_info['username']
+
+        if ":" in accnt_info['main_playlist']:
+            user.playlist_uri = getURI(accnt_info['main_playlist'], 5)
+        else:
+            user.playlist_uri = accnt_info['main_playlist']
+
+        if ":" in accnt_info['backup_playlist']:
+            user.backup_uri = getURI(accnt_info['backup_playlist'], 5)
+        else:
+            user.backup_uri = accnt_info['backup_playlist']
 
         # User settings
         settings_info = user_config['SETTINGS']
