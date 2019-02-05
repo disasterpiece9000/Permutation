@@ -12,10 +12,10 @@ ___
 * **Discard pile** - Don't let those removed songs disappear into the abyss! Setup a secondary playlist and Permutation will store all the removed songs in it. It's perfect for a trip down memory lane.
 
 ## Configuration:
-Create a file called settings.ini with the following settings filled in
+Create a file called settings.ini with the following text and fill in the fields:
 ```
 [ACCNT_INFO]
-username = someuser
+username = 
 # URI of the playlist that will be managed by the program
 main_playlist = 
 # URI of the playlist that the removed songs will be added to
