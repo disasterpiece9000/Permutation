@@ -1,14 +1,16 @@
+import time
+import os
+import sys
 import spotipy
 import spotipy.util as util
+from tinydb import TinyDB, Query
+from tinydb.operations import increment
 from user import User
 from track import Track
 import dateutil.parser
 from datetime import datetime, date, timezone
-from tinydb import TinyDB, Query
-from tinydb.operations import increment
-import time
-import os
-import sys
+from requests.exceptions import ConnectionError
+
 
 # Getting things ready
 find_stuff = Query()        # Initiate TinyDB Querry
@@ -18,8 +20,16 @@ path = "./users"            # Path to users folder
 folders = os.listdir(path)  # List of all user's folders
 
 # Create all User objects and store in all_users
-for username in folders:
-    all_users.append(User(username))
+made_users = False
+while made_users == False:
+    try:
+        for username in folders:
+            all_users.append(User(username))
+            made_users = True
+    except ConnectionError:
+        print("Connection Error: Sleeping for 1 min")
+        time.sleep(60)
+        continue
 
 # Read the playlist info and store the tracks in a nested dict/json file
 def initializePlaylist(user):
@@ -41,7 +51,7 @@ def initializePlaylist(user):
 
         user.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
 
-    print('Database generated for playlist\n')
+    print('User: ' + user.username + '\tDatabase generated for playlist\n')
 
 # Check for new songs added to playlist
 def checkSongs(user):
@@ -69,7 +79,7 @@ def checkSongs(user):
 
             user.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
 
-            print('New track: ' + name + ' found in playlist')
+            print('User: ' + user.username + '\tNew track: ' + name + ' found in playlist')
 
     # If a track in playlist_data is not in the playlist then remove it
     for track_id in list(user.playlist_data):
@@ -78,7 +88,7 @@ def checkSongs(user):
             del user.playlist_data[track_id]
             user.playlist_db.remove(find_stuff.track_id == track_id)
 
-            print('Removed track from playlist: ' + name)
+            print('User: ' + user.username + '\tRemoved track from playlist: ' + name)
 
 
 # Gets paginated results from playlist track list
@@ -119,7 +129,7 @@ def logListen(user, track_dict):
     track.listen_count += 1
     user.playlist_db.update(increment('listen_count'), find_stuff.track_id == track_id)
 
-    print('Track: ' + track.name + ' listen count incremented to ' + str(track.listen_count))
+    print('User: ' + user.username + '\tTrack: ' + track.name + ' listen count incremented to ' + str(track.listen_count))
 
 # Finds the song that has the lowest listens per day ratio
 def findLeastListened(user):
@@ -149,7 +159,7 @@ def trimPlaylist(user):
         track = []
         track.append(track_id)
 
-        print('Removed track from playlist: ' + user.playlist_data[track_id].name)
+        print('User: ' + user.username + '\tRemoved track from playlist: ' + user.playlist_data[track_id].name)
 
         # Remove the song from the playlist, dict, and database
         sp.user_playlist_remove_all_occurrences_of_tracks(user.username, user.playlist_uri, track)
@@ -159,7 +169,7 @@ def trimPlaylist(user):
         # Add the song to a backup playlist
         if user.backup_uri != "None" and user.backup_uri != None:
             sp.user_playlist_add_tracks(user.username, user.backup_uri, track)
-            print("Track added to secondary playlist")
+            print("User: " + user.username + "\tTrack added to secondary playlist")
 
 
 # Main method
@@ -173,27 +183,32 @@ if sys.argv[1] == "init":
             initializePlaylist(user)
             print(user.username + " was initialized\nExiting now...")
             sys.exit(0)
-        else:
-            print("That user was not found. Please make sure they have a folder and .ini file")
-            sys.exit(0)
+
+    print("User: " + user.username + "\tThat user was not found. Please make sure they have a folder and .ini file")
+    sys.exit(0)
 
 # Run continuously through all users
 elif sys.argv[1] == "auto":
     while(True):
-        # Itterate through all users
-        for user in all_users:
-            sp = user.getToken()
-            user.readPlaylistData()
+        try:
+            # Itterate through all users
+            for user in all_users:
+                sp = user.getToken()
+                user.readPlaylistData()
 
-            # Process listens
-            try:
-                user.last_listen_time = checkRecentlyPlayed(user)
-                checkSongs(user)
-                trimPlaylist(user)
-                time.sleep(10)
+                # Process listens
+                try:
+                    user.last_listen_time = checkRecentlyPlayed(user)
+                    checkSongs(user)
+                    trimPlaylist(user)
+                    time.sleep(10)
 
-            # Fetch a new token when the old one expires
-            except spotipy.client.SpotifyException:
-                sp = getToken()
-                print('Got new token\n')
-                continue
+                # Fetch a new token when the old one expires
+                except spotipy.client.SpotifyException:
+                    sp = getToken()
+                    print('User: ' + user.username + '\tGot new token\n')
+                    continue
+        except ConnectionError:
+            print("Connection Error: Sleeping for 1 min")
+            time.sleep(60)
+            continue
