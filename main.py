@@ -11,6 +11,8 @@ import dateutil.parser
 from datetime import datetime, date, timezone
 from requests.exceptions import ConnectionError
 
+line = "\n---------------------------------------------------\n"
+
 
 # Getting things ready
 find_stuff = Query()        # Initiate TinyDB Querry
@@ -27,7 +29,7 @@ while made_users == False:
 			all_users.append(User(username))
 			made_users = True
 	except ConnectionError:
-		print("Connection Error: Sleeping for 1 min")
+		print(line + "Connection Error: Sleeping for 1 min" + line)
 		time.sleep(60)
 		continue
 
@@ -51,7 +53,7 @@ def initializePlaylist(user):
 
 		user.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
 
-	print('User: ' + user.username + '\tDatabase generated for playlist\n')
+	print('User: ' + user.username + "\nDatabase generated for playlist")
 
 # Check for new songs added to playlist
 def checkSongs(user):
@@ -79,7 +81,8 @@ def checkSongs(user):
 
 			user.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
 
-			print('User: ' + user.username + '\tNew track: ' + name + ' found in playlist')
+			print('User: ' + user.username + '\tNew track found\n\t' + 
+					"Name: " + name + "\n\tArtist: " + artist + line)
 
 	# If a track in playlist_data is not in the playlist then remove it
 	for track_id in list(user.playlist_data):
@@ -87,8 +90,6 @@ def checkSongs(user):
 			name = user.playlist_data[track_id].name
 			del user.playlist_data[track_id]
 			user.playlist_db.remove(find_stuff.track_id == track_id)
-
-			print('User: ' + user.username + '\tRemoved track from playlist: ' + name)
 
 
 # Gets paginated results from playlist track list
@@ -110,7 +111,7 @@ def checkRecentlyPlayed(user):
 	try:
 		new_last_listen = dateutil.parser.parse(results['items'][0]['played_at'])
 	except TypeError:
-		print("User: " + user.username + "\tError: Nothing returned for recently played")
+		print("User: " + user.username + "\tError: Nothing returned for recently played" + line)
 		new_last_listen = user.last_listen_time
 
 	for track in results['items']:
@@ -133,7 +134,8 @@ def logListen(user, track_dict):
 	track.listen_count += 1
 	user.playlist_db.update({'listen_count': track.listen_count}, find_stuff.track_id == track_id)
 
-	print('User: ' + user.username + '\tTrack: ' + track.name + ' listen count incremented to ' + str(track.listen_count))
+	print('User: ' + user.username + '\tUpdate listen count\n\t' + 
+					"Name: " + track.name + "\n\tArtist: " + track.artist + "\nListen Count: " + str(track.listen_count) + line)
 
 # Finds the song that has the lowest listens per day ratio
 def findLeastListened(user):
@@ -160,20 +162,24 @@ def trimPlaylist(user):
 		track_id = findLeastListened(user)
 		if track_id == None:
 			return
-		track = []
+		track_list= []
 		track.append(track_id)
+		track = user.playlist_data[track_id]
 
-		print('User: ' + user.username + '\tRemoved track from playlist: ' + user.playlist_data[track_id].name)
+		print('User: ' + user.username + '\tLowest listen song removed\n\t' + 
+					"Name: " + track.name + "\n\tArtist: " + track.artist)
 
 		# Remove the song from the playlist, dict, and database
-		sp.user_playlist_remove_all_occurrences_of_tracks(user.username, user.playlist_uri, track)
+		sp.user_playlist_remove_all_occurrences_of_tracks(user.username, user.playlist_uri, track_list)
 		del user.playlist_data[track_id]
 		user.playlist_db.remove(find_stuff.track_id == track_id)
 
 		# Add the song to a backup playlist
 		if user.backup_uri != "None" and user.backup_uri != None:
-			sp.user_playlist_add_tracks(user.username, user.backup_uri, track)
-			print("User: " + user.username + "\tTrack added to secondary playlist")
+			sp.user_playlist_add_tracks(user.username, user.backup_uri, track_list)
+			print("Track added to backup playlist")
+
+		print(line)
 
 
 # Main method
@@ -212,6 +218,6 @@ elif sys.argv[1] == "auto":
 					sp = user.getToken()
 					continue
 		except ConnectionError:
-			print("Connection Error: Sleeping for 1 min")
+			print("Connection Error: Sleeping for 1 min" + line)
 			time.sleep(60)
 			continue
