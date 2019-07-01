@@ -1,9 +1,9 @@
 class Track:
-	def __init__(track, id, date_added, name, artist, album, listen_count):
-		track.id = id
-		track.name = name
-		track.artist = artist
-		track.album = album
+	def __init__(self, track_id, date_added, name, artist, album, listen_count):
+		self.id = track_id
+		self.name = name
+		self.artist = artist
+		self.album = album
 
-		track.date_added = date_added
-		track.listen_count = listen_count
+		self.date_added = date_added
+		self.listen_count = listen_count
