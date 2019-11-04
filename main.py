@@ -1,40 +1,40 @@
 import time
-import os
 import sys
 import spotipy
-from tinydb import Query
+import pyodbc
 from user import User
-from track import Track
 import dateutil.parser
 from datetime import datetime, timezone
 from requests.exceptions import ConnectionError
 
+conn = pyodbc.connect('Driver={SQL Server};'
+                      'Server=permutation2.c06ndc8a9kh3.us-east-1.rds.amazonaws.com,1433;'
+                      'uid=admin;'
+                      'pwd=password;'
+                      'Database=Permutation;'
+                      'Trusted_Connection=no;',
+                      autocommit=True)
+cursor = conn.cursor()
+
 line = "\n---------------------------------------------------\n"
 
 # Getting things ready
-find_stuff = Query()  # Initiate TinyDB Query
 sp = None  # Create a global variable for authorized Spotipy
 all_users = []  # List of all User objects
-path = "./users"  # Path to users folder
-folders = os.listdir(path)  # List of all user's folders
+
 
 # Create all User objects and store in all_users
-made_users = False
-while not made_users:
-    try:
-        for username in folders:
-            all_users.append(User(username))
-            made_users = True
-    except ConnectionError:
-        print(line + "Connection Error: Sleeping for 1 min" + line)
-        time.sleep(60)
-        continue
+def get_all_users():
+    cursor.execute('SELECT * FROM UserInfo')
+    for row in cursor:
+        token_info = {"access token": row.authToken, "refresh token": row.reauthToken,
+                      "token expiration": row.tokenExpiration}
+        all_users.append(User(row.username, row.mainPlaylistURI, row.backupPlaylistURI,
+                              row.songCap, row.minDays, row.lastListenTime, token_info))
 
 
 # Read the playlist info and store the tracks in a nested dict/json file
 def initialize_playlist(user_obj):
-    user_obj.playlist_data.clear()
-    user_obj.playlist_db.purge()
     
     playlist = get_playlist_tracks(user_obj)
     for track in playlist:
@@ -45,19 +45,19 @@ def initialize_playlist(user_obj):
         album = track['track']['album']['name']
         listen_count = 0
         
-        user_obj.playlist_db.insert({'track_id': track_id, 'date_added': date_added.__str__(),
-                                     'name': name, 'artist': artist, 'album': album,
-                                     'listen_count': listen_count})
-        
-        user_obj.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
+        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI) "
+                       "VALUES(?,?,?,?,?,?,?)",
+                       track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
     
-    print('User: ' + user_obj.username + "\nDatabase generated for playlist")
+    print('User: ' + user_obj.username + "\nDatabase populated with songs from main playlist")
 
 
 # Check for new songs added to playlist
 def check_songs(user_obj):
     # Get updated tracklist
     current_playlist = get_playlist_tracks(user_obj)
+    cursor.execute("SELECT ID FROM Song WHERE playlistURI = ?", user_obj.playlist_uri)
+    stored_track_ids = [row.ID for row in cursor]
     
     # Store a list of track IDs in current playlist
     current_tracks = []
@@ -66,27 +66,27 @@ def check_songs(user_obj):
         current_tracks.append(track_id)
         
         # If a track is in the playlist and not in playlist_data then add it
-        if track_id not in user_obj.playlist_data:
+        if track_id not in stored_track_ids:
             date_added = dateutil.parser.parse(track['added_at'])
             name = track['track']['name']
             artist = track['track']['artists'][0]['name']
             album = track['track']['album']['name']
             listen_count = 0
             
-            user.playlist_db.insert({'track_id': track_id, 'date_added': date_added.__str__(),
-                                     'name': name, 'artist': artist, 'album': album,
-                                     'listen_count': listen_count})
-            
-            user_obj.playlist_data[track_id] = Track(track_id, date_added, name, artist, album, listen_count)
+            cursor.execute("INSERT INTO Song(ID, title, artist, album, listenCount, playlistURI) "
+                           "VALUES(?,?,?,?,?,?)",
+                           track_id, name, artist, album, listen_count, user_obj.playlist_uri)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
                   "Name: " + name + "\n\tArtist: " + artist + line)
+            
+    user_obj.playlist_track_IDs = current_tracks
     
     # If a track in playlist_data is not in the playlist then remove it
-    for track_id in list(user_obj.playlist_data):
+    for track_id in stored_track_ids:
         if track_id not in current_tracks:
-            del user_obj.playlist_data[track_id]
-            user_obj.playlist_db.remove(find_stuff.track_id == track_id)
+            cursor.execute("DELETE FROM Song WHERE ID = ? AND playlistURI = ? ",
+                           track_id, user_obj.playlist_uri)
 
 
 # Gets paginated results from playlist track list
@@ -115,26 +115,23 @@ def check_recently_played(user_obj):
     for track in results['items']:
         track_last_played = dateutil.parser.parse(track['played_at'])
         
-        # Log the song if it has not already been counted
+        # Log the listen if it has not already been counted
         if track_last_played > user_obj.last_listen_time:
             track_id = track['track']['id']
-            if track_id in user_obj.playlist_data:
-                log_listen(user, track)
-    # Return the time of the most recently processed song
-    return new_last_listen
+            
+            if track_id in user_obj.playlist_track_IDs:
+                cursor.execute("UPDATE Song "
+                               "SET listenCount = listenCount + 1 "
+                               "WHERE ID = ? AND playlistURI = ?",
+                               track_id, user_obj.playlist_uri)
 
-
-# Log songs listened to
-def log_listen(user_obj, track_dict):
-    track_id = track_dict['track']['id']
-    track = user.playlist_data[track_id]
+    # Update the user's last listen time
+    cursor.execute("UPDATE UserInfo "
+                   "SET lastListenTime = ? "
+                   "WHERE username = ?",
+                   new_last_listen, user_obj.username)
     
-    # Increment listen count
-    track.listen_count += 1
-    user_obj.playlist_db.update({'listen_count': track.listen_count}, find_stuff.track_id == track_id)
-    
-    print('User: ' + user_obj.username + '\tUpdate listen count\n\t' +
-          "Name: " + track.name + "\n\tArtist: " + track.artist + "\nListen Count: " + str(track.listen_count) + line)
+    user_obj.last_listen_time = new_last_listen
 
 
 # Finds the song that has the lowest listens per day ratio
@@ -143,26 +140,32 @@ def find_least_listened(user_obj):
     lowest_ratio = 1000.0
     lowest_track_id = None
     
-    for track_id in user_obj.playlist_data:
-        track = user_obj.playlist_data[track_id]
-        time_delta = datetime.now(timezone.utc) - track.date_added
+    for track_id in user_obj.playlist_track_IDs:
+        track_data = cursor.execute("SELECT dateAdded, listenCount FROM Song "
+                                    "WHERE ID = ? AND playlistURI = ?",
+                                    track_id, user_obj.playlist_uri).fetchone()
+        date_added = track_data.dateAdded
+        listen_count = track_data.listenCount
+        
+        time_delta = datetime.now(timezone.utc) - date_added
         
         # Don't remove songs if they have been in the playlist for less than specified days
         if time_delta.days > user_obj.min_days:
-            listen_ratio = track.listen_count / float(time_delta.days)
+            listen_ratio = listen_count / float(time_delta.days)
             
             if listen_ratio < lowest_ratio:
                 lowest_ratio = listen_ratio
-                lowest_track_id = track.id
+                lowest_track_id = track_id
     return lowest_track_id
 
 
 # Removes least listened to songs until the playlist is at its cap
 def trim_playlist(user_obj):
-    while len(user_obj.playlist_data) > user_obj.song_cap:
+    while len(user_obj.playlist_track_IDs) > user_obj.song_cap:
         track_id = find_least_listened(user_obj)
         if track_id is None:
             return
+        
         track_list = [track_id]
         track = user_obj.playlist_data[track_id]
         
@@ -171,8 +174,10 @@ def trim_playlist(user_obj):
         
         # Remove the song from the playlist, dict, and database
         sp.user_playlist_remove_all_occurrences_of_tracks(user_obj.username, user_obj.playlist_uri, track_list)
-        del user_obj.playlist_data[track_id]
-        user_obj.playlist_db.remove(find_stuff.track_id == track_id)
+        user_obj.playlist_track_IDs.remove(track_id)
+        cursor.execute("DELETE FROM Song "
+                       "WHERE ID = ? AND playlistURI = ?",
+                       track_id, user_obj.playlist_uri)
         
         # Add the song to a backup playlist
         if user_obj.backup_uri != "None" and user_obj.backup_uri is not None:
@@ -208,7 +213,7 @@ elif sys.argv[1] == "auto":
                 
                 # Process listens
                 try:
-                    user.last_listen_time = check_recently_played(user)
+                    check_recently_played(user)
                     check_songs(user)
                     trim_playlist(user)
                     time.sleep(10)
