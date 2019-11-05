@@ -103,27 +103,34 @@ def get_playlist_tracks(user_obj):
 
 # Get recently played songs and log them
 def check_recently_played(user_obj):
-    results = sp.current_user_recently_played(limit=25)
+    results = sp.current_user_recently_played(limit=25)['items']
     
     # Store the new last listen time
     try:
-        new_last_listen = dateutil.parser.parse(results['items'][0]['played_at'])
+        new_last_listen = int(dateutil.parser.parse(results[0]['played_at']).timestamp())
     except TypeError:
         print("User: " + user_obj.username + "\tError: Nothing returned for recently played" + line)
         new_last_listen = user_obj.last_listen_time
+        
+    print("Old last listen: " + str(user_obj.last_listen_time) +
+          "\n\tNew last listen: " + str(new_last_listen))
     
-    for track in results['items']:
-        track_last_played = dateutil.parser.parse(track['played_at'])
+    for track in results:
+        track_last_played = int(dateutil.parser.parse(track['played_at']).timestamp())
         
         # Log the listen if it has not already been counted
         if track_last_played > user_obj.last_listen_time:
             track_id = track['track']['id']
+
+            print(str(track_id) + " played at: " + str(track_last_played))
             
             if track_id in user_obj.playlist_track_IDs:
                 cursor.execute("UPDATE Song "
                                "SET listenCount = listenCount + 1 "
                                "WHERE ID = ? AND playlistURI = ?",
                                track_id, user_obj.playlist_uri)
+                
+                print("Song updated for " + user_obj.username + ":\n\tSong: " + str(track_id))
 
     # Update the user's last listen time
     cursor.execute("UPDATE UserInfo "
@@ -191,6 +198,7 @@ def trim_playlist(user_obj):
 # Initialize a new user
 if sys.argv[1] == "init":
     target_user = sys.argv[2]
+    get_all_users()
     for user in all_users:
         # If the user has been created, initialize the playlist data
         if user.username.lower() == target_user.lower():
@@ -205,16 +213,16 @@ if sys.argv[1] == "init":
 # Run continuously through all users
 elif sys.argv[1] == "auto":
     while True:
+        get_all_users()
         try:
             # Iterate through all users
             for user in all_users:
                 sp = user.get_token()
-                user.read_playlist_data()
                 
                 # Process listens
                 try:
-                    check_recently_played(user)
                     check_songs(user)
+                    check_recently_played(user)
                     trim_playlist(user)
                     time.sleep(10)
                 
