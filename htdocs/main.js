@@ -2,6 +2,7 @@
 var asyncRequest;
 var refreshRequest;
 var playlistRequest;
+var recommendedRequest;
 
 function start(){
     var baseURL=window.location.href;
@@ -76,8 +77,88 @@ function processResponse()
     return null;
 }
 
+function getRecommended()
+{
+    try
+    {
+        recommendedRequest = new XMLHttpRequest();
+        recommendedRequest.addEventListener(
+            "readystatechange", setRecommended, false); 
+        recommendedRequest.open('GET','http://127.0.0.1:5000/recommended',true);
+        recommendedRequest.setRequestHeader('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
+        recommendedRequest.send(null);
+    }
+    catch(e)
+    {
+        console.log("Exception: "+e.stack);
+    }
+}
+function setRecommended(e)
+{
+    if(recommendedRequest.readyState == 4 && recommendedRequest.status == 200)
+    {
+        target = e.target;
+        response = target.responseText;
+        //console.log(response);
+        var recommendedJson = JSON.parse(response);
+        var table = document.getElementById("recommendedTable");
+        table.setAttribute("style","visibility: visible;");
 
+        while(table.hasChildNodes())
+        {
+            table.removeChild(table.firstChild);
+        }
+        for(var i=0;i<recommendedJson['tracks'].length;i++)
+        {
+            var row = table.insertRow(i);
+            var cell0 = row.insertCell(0);
+            var cell1 = row.insertCell(1);
+            cell1.setAttribute("style","user-select: none;");
+            cell0.setAttribute("align","center");
+            cell0.setAttribute("valign","bottom");
+            var img = document.createElement('img');
+            var altImg = document.createElement('img');
+            altImg.src = "alt.png";
+            img.src=recommendedJson['tracks'][i]['album']['images'][2]['url'];
+            img.setAttribute("onerror","this.src='alt.png';");
+            img.setAttribute('id',recommendedJson['tracks'][i]['name']+i);
+            cell0.appendChild(img);
+            cell1.innerHTML=recommendedJson['tracks'][i]['name']+" - "+
+                recommendedJson['tracks'][i]['album']['artists'][0]['name'];
+            var audio = document.createElement('audio');
+            audio.id = recommendedJson['tracks'][i]['name']+i+'audio';
+            audio.src=recommendedJson['tracks'][i]['preview_url'];
+            audio.setAttribute('type','audio/mpeg');
+            audio.setAttribute('isplaying','false');
+            //audio.controls = 'controls';
+            cell0.appendChild(audio);
+            cell0.addEventListener('click',function(){playPreview(event)},false);
 
+        }
+    }
+    
+
+}
+
+function playPreview(e)
+{
+    target = e.target;
+    name = target.id+'audio';
+    console.log('element id:'+name);
+    var audio = document.getElementById(name);
+    var isPlaying = audio.getAttribute('isplaying');
+    if(isPlaying=='true')
+    {
+        audio.pause();
+        audio.setAttribute('isplaying','false');
+    }
+    else
+    {
+        audio.play();
+        audio.setAttribute('isplaying','true');
+    }
+    
+}
 
 function setPlaylists(response)
 {
@@ -102,8 +183,7 @@ function setPlaylists(response)
         var altImg = document.createElement('img');
         altImg.src = "alt.png";
         img.setAttribute("onerror","this.src='alt.png';");
-        img.setAttribute("style","width:100px;height:100px;")
-        console.log("image link"+image);
+        img.setAttribute("style","width:64px;height:64px;")
         img.src = image;
         cell0.appendChild(img);
         var song = cell1.innerHTML=playlist;
