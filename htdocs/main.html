@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style type="text/css">
+    table {
+        border-radius: 25px;
+        width: 40%;
+        margin-left: 30%;
+        margin-right: 30%;
+        color: white;
+        text-align: start;
+        font-size: 23px;
+        background: linear-gradient(to right,rgb(44, 44, 44),rgb(66, 66, 66) 10%, rgb(66, 66, 66) 90%,rgb(44, 44, 44));
+        
+        
+    }
+    html {
+        height: 100%;
+        margin: 0;
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-attachment:fixed;
+        background:
+        linear-gradient(to right,rgb(49, 49, 49),plum, lightblue,rgb(49, 49, 49));
+        
+    }
+    p {
+        font-size: 20px;
+        color: white;
+    }
+    h1 {
+        border-radius: 25px;
+        background: linear-gradient(to right,rgb(44, 44, 44),rgb(66, 66, 66) 10%, rgb(66, 66, 66) 90%,rgb(44, 44, 44));
+        width: 50%;
+        margin-left: 25%;
+        margin-right: 25%;
+        opacity: 1;
+        background-color: rgb(49, 49, 49);
+        align-content: center;
+        color: white;}
+    </style>
+<head>
+    <title>Permutation</title>
+    <link rel="shortcut icon" href="blkicon.png" />
+    <script src="main.js"></script>
+</head>
+<body onload="start()" >
+    <p><img src="spotifylogo.png" align="middle" style="width: 50px; height: 50px;">Permutation</p>
+    <h1 id="h1" align="middle"></h1>
+    <table id="playlistTable" align="middle" border="0">
+        <tbody>
+        </tbody>
+    </table>
+
+    <input type="button" value="Get Recommended" onclick="getRecommended()"
+        style="background-color: green;
+        color: white;
+        padding: 12px 32px;
+        border-color: green;
+        border-radius: 12px;
+        font-size: 18px;
+        margin-top: 20px;
+        width: 20%;
+        margin-left: 40%;
+        margin-right: 40%;">
+    <table id="recommendedTable" align="middle" border="0" style="visibility: hidden;">
+        <tbody>
+        </tbody>
+    </table>
+</body>
