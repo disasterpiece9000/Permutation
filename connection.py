@@ -19,6 +19,7 @@ REDIRECT_URI = 'http://localhost:8080/main.html'
 SCOPE = "playlist-modify-private playlist-modify-public user-read-recently-played"
 access_info = None
 sp = None
+selectedPlaylist = None
 
 conn = pyodbc.connect('Driver={SQL Server};'
                       'Server=permutation2.c06ndc8a9kh3.us-east-1.rds.amazonaws.com,1433;'
@@ -27,12 +28,15 @@ conn = pyodbc.connect('Driver={SQL Server};'
                       'Database=Permutation;'
                       'Trusted_Connection=no;',
                       autocommit=True)
+if conn:
+    print("connected")
+else:
+    print("error")
 cursor = conn.cursor()
 
 
-
-
 def database_insert(username, access, playlists):
+    print('1')
     cursor.execute("IF NOT EXISTS ("
                    "SELECT username FROM UserInfo "
                    "WHERE username = ?"
@@ -42,6 +46,7 @@ def database_insert(username, access, playlists):
                    "VALUES(?,?,?) "
                    "END",
                    username, username, access['access_token'], access['refresh_token'])
+    print('2')
     for playlist in playlists['items']:
         if playlist['owner']['id'] == username:
             print(playlist['name'] + " uri:" + playlist['id'])
@@ -63,46 +68,19 @@ def index():
     global access_info
     if request.method == "POST":
         data = {}
-        username_url = "https://api.spotify.com/v1/me"
-
-
-        code = request.form["code"]
-        token_info = ""
-        token_url = "https://accounts.spotify.com/api/token"
-        payload = {
-            'grant_type':'authorization_code',
-            'code':code,
-            'redirect_uri':REDIRECT_URI
-        }
-        auth_header=base64.b64encode(six.text_type(CLIENT_ID+':'+CLIENT_SECRET).encode('ascii'))
-        headers = {'Authorization':'Basic %s' % auth_header.decode('ascii')}
-        response = requests.post(token_url,data=payload,headers=headers)
-        access = literal_eval(response.text)
-        access_info = access
-        print(json.dumps(access))
-        sp = spotipy.Spotify(auth=access["access_token"])
-        username_header = {'Authorization':'Bearer %s' % access['access_token']}
-        username_response = requests.get(url=username_url, headers=username_header)
-        username_json = json.loads(username_response.text)
-        username = username_json['display_name']
-        USERNAME = username
-        data['username'] = username
-
+        username = USERNAME
         playlists = sp.user_playlists(username)
         playlsts = ''
         print("Getting playlists")
         count = 0
         for playlist in playlists['items']:
             if playlist['owner']['id'] == username:
-                print(playlist['name']+" uri:"+playlist['id'])
                 if count == 0:
                     playlsts = playlsts + (playlist['name'] + "|" + playlist["images"][0]['url'])
                 else:
                     playlsts = playlsts + (";" + playlist['name']+"|"+playlist["images"][0]['url'])
                 count = count + 1
         data['playlists'] = playlsts
-        t1 = threading.Thread(target=database_insert, args=(username, access, playlists))
-        t1.start()
         return json.dumps(data)
     return
 
@@ -141,6 +119,98 @@ def get_playlists():
                 print(playlist['name'])
         return playlsts
     return
+
+@app.route("/confirm", methods=['GET','POST'])
+def confirm_selection():
+    global selectedPlaylist
+    global sp
+    if request.method == "POST":
+        data = {}
+        playlist = request.form["playlist"]
+        print(playlist)
+        playlists = sp.user_playlists(USERNAME)
+        for p in playlists['items']:
+            if p['owner']['id'] == USERNAME:
+                if p["name"] == playlist:
+                    print("selected playlist "+p['name'])
+                    results = sp.user_playlist(USERNAME, p['id'], fields="tracks,next")
+                    tracks = results['tracks']
+                    data['tracks'] = tracks
+                    data['playlist'] = p
+                    selectedPlaylist = json.dumps(data)
+                    print(selectedPlaylist)
+                    selectedPlaylist = json.loads(selectedPlaylist)
+                    return selectedPlaylist
+
+    if request.method == "GET":
+        if selectedPlaylist is not None:
+            print('returning '+selectedPlaylist['playlist']['name'])
+            return selectedPlaylist
+
+
+@app.route("/main", methods=['POST'])
+def main_page():
+    global USERNAME
+    global sp
+    global access_info
+    if request.method == "POST":
+        data = {}
+        username_url = "https://api.spotify.com/v1/me"
+
+        if access_info is None:
+            code = request.form["code"]
+            token_info = ""
+            token_url = "https://accounts.spotify.com/api/token"
+            payload = {
+                'grant_type': 'authorization_code',
+                'code': code,
+                'redirect_uri': REDIRECT_URI
+            }
+            auth_header = base64.b64encode(six.text_type(CLIENT_ID + ':' + CLIENT_SECRET).encode('ascii'))
+            headers = {'Authorization': 'Basic %s' % auth_header.decode('ascii')}
+            response = requests.post(token_url, data=payload, headers=headers)
+            access = literal_eval(response.text)
+            access_info = access
+            print(json.dumps(access))
+        sp = spotipy.Spotify(auth=access_info["access_token"])
+        username_header = {'Authorization': 'Bearer %s' % access_info['access_token']}
+        username_response = requests.get(url=username_url, headers=username_header)
+        username_json = json.loads(username_response.text)
+        username = username_json['display_name']
+        USERNAME = username
+        data['username'] = username
+
+        playlists = sp.user_playlists(username)
+        playlsts = ''
+        print("Getting playlists")
+        count = 0
+        for playlist in playlists['items']:
+            if playlist['owner']['id'] == username:
+                if count == 0:
+                    playlsts = playlsts + (playlist['name'] + "|" + playlist["images"][0]['url'])
+                else:
+                    playlsts = playlsts + (";" + playlist['name'] + "|" + playlist["images"][0]['url'])
+                count = count + 1
+        data['playlists'] = playlsts
+        cursor.execute("SELECT * FROM UserInfo WHERE username='"+username+"'")
+        mainPlaylistURI = cursor.fetchone().mainPlaylistURI
+        backupPlaylistURI = cursor.fetchone().backupPlaylistURI
+        mainPlaylist=None
+        backupPlaylist=None
+        for playlist in playlists:
+            if mainPlaylistURI == playlist['name']:
+                mainPlaylist = playlist
+            if backupPlaylistURI == playlist['name']:
+                backupPlaylist = playlist
+
+        t1 = threading.Thread(target=database_insert, args=(username, access_info, playlists))
+        t1.start()
+        if mainPlaylist is None:
+            return None
+        playlistData = {}
+        playlistData['mainPlaylist'] = mainPlaylist
+        playlistData['backupPlaylist'] = backupPlaylist
+        return json.dumps(playlistData)
 
 
 @app.route("/recommended", methods=['GET'])
