@@ -61,6 +61,7 @@ def database_insert(username, access, playlists):
                            username, playlist["id"], playlist["id"], playlist["name"], username)
     return
 
+
 @app.route("/start", methods=['GET' , 'POST'])
 def index():
     global USERNAME
@@ -211,6 +212,35 @@ def main_page():
         playlistData['mainPlaylist'] = mainPlaylist
         playlistData['backupPlaylist'] = backupPlaylist
         return json.dumps(playlistData)
+
+
+@app.route("/recommended", methods=['GET'])
+def recommend():
+    print("sending rocommended")
+    if request.method == "GET":
+        t = access_info["access_token"]
+        results = sp.current_user_top_tracks(limit=5, time_range='short_term')
+        tracks_dict = results['items']
+        while results['next']:
+            results = sp.next(results)
+            tracks_dict.extend(results['items'])
+        top_list = ""
+        count = 0
+        test = ""
+        for x in tracks_dict:
+            if count > 4:
+                continue
+            if count == 0:
+                top_list = top_list + x['id']
+            else:
+                top_list = top_list+","+x['id']
+            count = count+1
+        url = "https://api.spotify.com/v1/recommendations?"
+        url = url + "seed_tracks="+top_list + "&" + "market=US"
+        header = {'Authorization':'Bearer %s' % t}
+        response = requests.get(url=url,headers=header)
+        r = response.json()
+        return json.dumps(r)
 
 
 @app.route("/recommended", methods=['GET'])

@@ -25,6 +25,8 @@ all_users = []  # List of all User objects
 
 # Create all User objects and store in all_users
 def get_all_users():
+    all_users.clear()
+    
     cursor.execute('SELECT * FROM UserInfo')
     for row in cursor:
         token_info = {"access token": row.authToken, "refresh token": row.reauthToken,
@@ -39,7 +41,6 @@ def initialize_playlist(user_obj):
     playlist = get_playlist_tracks(user_obj)
     for track in playlist:
         track_id = track['track']['id']
-        date_added = dateutil.parser.parse(track['added_at'])
         name = track['track']['name']
         artist = track['track']['artists'][0]['name']
         album = track['track']['album']['name']
@@ -67,15 +68,14 @@ def check_songs(user_obj):
         
         # If a track is in the playlist and not in playlist_data then add it
         if track_id not in stored_track_ids:
-            date_added = dateutil.parser.parse(track['added_at'])
             name = track['track']['name']
             artist = track['track']['artists'][0]['name']
             album = track['track']['album']['name']
             listen_count = 0
             
-            cursor.execute("INSERT INTO Song(ID, title, artist, album, listenCount, playlistURI) "
-                           "VALUES(?,?,?,?,?,?)",
-                           track_id, name, artist, album, listen_count, user_obj.playlist_uri)
+            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI) "
+                           "VALUES(?,?,?,?,?,?,?)",
+                           track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
                   "Name: " + name + "\n\tArtist: " + artist + line)
@@ -87,6 +87,9 @@ def check_songs(user_obj):
         if track_id not in current_tracks:
             cursor.execute("DELETE FROM Song WHERE ID = ? AND playlistURI = ? ",
                            track_id, user_obj.playlist_uri)
+
+            print('User: ' + user_obj.username + '\nTrack deleted\n\t' +
+                  "ID: " + track_id + line)
 
 
 # Gets paginated results from playlist track list
@@ -103,27 +106,35 @@ def get_playlist_tracks(user_obj):
 
 # Get recently played songs and log them
 def check_recently_played(user_obj):
-    results = sp.current_user_recently_played(limit=25)
+    results = sp.current_user_recently_played(limit=25)['items']
     
     # Store the new last listen time
     try:
-        new_last_listen = dateutil.parser.parse(results['items'][0]['played_at'])
+        new_last_listen = int(dateutil.parser.parse(results[0]['played_at']).timestamp())
     except TypeError:
         print("User: " + user_obj.username + "\tError: Nothing returned for recently played" + line)
-        new_last_listen = user_obj.last_listen_time
+        user_obj.last_listen_time = int(time.time())
+        return
+        
+    print("\nOld last listen: " + str(user_obj.last_listen_time) +
+          "\nNew last listen: " + str(new_last_listen) + "\n")
     
-    for track in results['items']:
-        track_last_played = dateutil.parser.parse(track['played_at'])
+    for track in results:
+        track_last_played = int(dateutil.parser.parse(track['played_at']).timestamp())
         
         # Log the listen if it has not already been counted
         if track_last_played > user_obj.last_listen_time:
             track_id = track['track']['id']
+
+            print(str(track_id) + " played at: " + str(track_last_played))
             
             if track_id in user_obj.playlist_track_IDs:
                 cursor.execute("UPDATE Song "
                                "SET listenCount = listenCount + 1 "
                                "WHERE ID = ? AND playlistURI = ?",
                                track_id, user_obj.playlist_uri)
+                
+                print("Song updated for " + user_obj.username + ":\n\tSong: " + str(track_id))
 
     # Update the user's last listen time
     cursor.execute("UPDATE UserInfo "
@@ -191,6 +202,7 @@ def trim_playlist(user_obj):
 # Initialize a new user
 if sys.argv[1] == "init":
     target_user = sys.argv[2]
+    get_all_users()
     for user in all_users:
         # If the user has been created, initialize the playlist data
         if user.username.lower() == target_user.lower():
@@ -205,23 +217,25 @@ if sys.argv[1] == "init":
 # Run continuously through all users
 elif sys.argv[1] == "auto":
     while True:
+        get_all_users()
         try:
             # Iterate through all users
             for user in all_users:
                 sp = user.get_token()
-                user.read_playlist_data()
                 
                 # Process listens
                 try:
-                    check_recently_played(user)
                     check_songs(user)
+                    check_recently_played(user)
                     trim_playlist(user)
-                    time.sleep(10)
                 
                 # Fetch a new token when the old one expires
                 except spotipy.client.SpotifyException as e:
                     print("Error: " + str(e))
                     continue
+
+            time.sleep(10)
+            
         except ConnectionError:
             print("Connection Error: Sleeping for 1 min" + line)
             time.sleep(60)

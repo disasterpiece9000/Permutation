@@ -1,10 +1,6 @@
 import spotipy
 from spotipy import oauth2
-from tinydb import TinyDB
 import configparser
-from datetime import datetime, timezone
-import dateutil.parser
-from track import Track
 
 # Read authentication information from ini file
 auth_config = configparser.ConfigParser()
@@ -39,30 +35,7 @@ class User:
         self.token_info = token_info
         self.last_listen_time = lastListenTime
         self.playlist_track_IDs = None
-        
-        self.sp_oauth = oauth2.SpotifyOAuth(client_id=CLIENT_ID, client_secret=CLIENT_SECRET, redirect_uri=REDIRECT_URI,
-                                            scope=SCOPE)
-        
-        self.token_info = self.sp_oauth.get_cached_token()
-        
-        if not self.token_info:
-            auth_url = self.sp_oauth.get_authorize_url(show_dialog=True)
-            print(auth_url)
-            response = input('Paste the above link into your browser, then paste the redirect url here: ')
-            
-            code = self.sp_oauth.parse_response_code(response)
-            self.token_info = self.sp_oauth.get_access_token(code)
-        
-        self.access_token = self.token_info['access_token']
-        self.token = spotipy.Spotify(auth=self.access_token)
-        
-        print("Created user: " + self.username)
-        print("Token Info: " + str(self.token_info))
     
     # Authorize for the account specified in the user.py file
     def get_token(self):
-        if self.sp_oauth.is_token_expired(self.token_info):
-            self.token_info = self.sp_oauth.refresh_access_token(self.token_info["refresh_token"])
-            self.access_token = self.token_info["access_token"]
-            self.token = spotipy.Spotify(auth=self.token)
-        return self.token
+        return spotipy.Spotify(auth=self.token_info["access token"])
