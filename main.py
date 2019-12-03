@@ -74,7 +74,7 @@ def check_songs(user_obj):
             listen_count = 0
             
             cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI) "
-                           "VALUES(?,?,?,?,?,?)",
+                           "VALUES(?,?,?,?,?,?,?)",
                            track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
@@ -87,6 +87,9 @@ def check_songs(user_obj):
         if track_id not in current_tracks:
             cursor.execute("DELETE FROM Song WHERE ID = ? AND playlistURI = ? ",
                            track_id, user_obj.playlist_uri)
+
+            print('User: ' + user_obj.username + '\nTrack deleted\n\t' +
+                  "ID: " + track_id + line)
 
 
 # Gets paginated results from playlist track list
