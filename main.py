@@ -25,6 +25,8 @@ all_users = []  # List of all User objects
 
 # Create all User objects and store in all_users
 def get_all_users():
+    all_users.clear()
+    
     cursor.execute('SELECT * FROM UserInfo')
     for row in cursor:
         token_info = {"access token": row.authToken, "refresh token": row.reauthToken,
@@ -39,7 +41,6 @@ def initialize_playlist(user_obj):
     playlist = get_playlist_tracks(user_obj)
     for track in playlist:
         track_id = track['track']['id']
-        date_added = dateutil.parser.parse(track['added_at'])
         name = track['track']['name']
         artist = track['track']['artists'][0]['name']
         album = track['track']['album']['name']
@@ -67,15 +68,14 @@ def check_songs(user_obj):
         
         # If a track is in the playlist and not in playlist_data then add it
         if track_id not in stored_track_ids:
-            date_added = dateutil.parser.parse(track['added_at'])
             name = track['track']['name']
             artist = track['track']['artists'][0]['name']
             album = track['track']['album']['name']
             listen_count = 0
             
-            cursor.execute("INSERT INTO Song(ID, title, artist, album, listenCount, playlistURI) "
+            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI) "
                            "VALUES(?,?,?,?,?,?)",
-                           track_id, name, artist, album, listen_count, user_obj.playlist_uri)
+                           track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
                   "Name: " + name + "\n\tArtist: " + artist + line)
@@ -110,10 +110,11 @@ def check_recently_played(user_obj):
         new_last_listen = int(dateutil.parser.parse(results[0]['played_at']).timestamp())
     except TypeError:
         print("User: " + user_obj.username + "\tError: Nothing returned for recently played" + line)
-        new_last_listen = user_obj.last_listen_time
+        user_obj.last_listen_time = int(time.time())
+        return
         
-    print("Old last listen: " + str(user_obj.last_listen_time) +
-          "\n\tNew last listen: " + str(new_last_listen))
+    print("\nOld last listen: " + str(user_obj.last_listen_time) +
+          "\nNew last listen: " + str(new_last_listen) + "\n")
     
     for track in results:
         track_last_played = int(dateutil.parser.parse(track['played_at']).timestamp())
@@ -224,12 +225,14 @@ elif sys.argv[1] == "auto":
                     check_songs(user)
                     check_recently_played(user)
                     trim_playlist(user)
-                    time.sleep(10)
                 
                 # Fetch a new token when the old one expires
                 except spotipy.client.SpotifyException as e:
                     print("Error: " + str(e))
                     continue
+
+            time.sleep(10)
+            
         except ConnectionError:
             print("Connection Error: Sleeping for 1 min" + line)
             time.sleep(60)

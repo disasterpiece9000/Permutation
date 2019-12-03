@@ -30,8 +30,6 @@ conn = pyodbc.connect('Driver={SQL Server};'
 cursor = conn.cursor()
 
 
-
-
 def database_insert(username, access, playlists):
     cursor.execute("IF NOT EXISTS ("
                    "SELECT username FROM UserInfo "
@@ -55,6 +53,7 @@ def database_insert(username, access, playlists):
                            "END",
                            username, playlist["id"], playlist["id"], playlist["name"], username)
     return
+
 
 @app.route("/start", methods=['GET' , 'POST'])
 def index():
