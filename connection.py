@@ -38,6 +38,14 @@ cursor = conn.cursor()
 
 
 def database_update(tracks_dict, playlistId):
+    conn2 = pyodbc.connect('Driver={SQL Server};'
+                           'Server=permutation2.c06ndc8a9kh3.us-east-1.rds.amazonaws.com,1433;'
+                           'uid=admin;'
+                           'pwd=password;'
+                           'Database=Permutation;'
+                           'Trusted_Connection=no;',
+                           autocommit=True)
+    cursor2 = conn2.cursor()
     for track in tracks_dict:
         track_id = track['track']['id']
         name = track['track']['name']
@@ -45,10 +53,10 @@ def database_update(tracks_dict, playlistId):
         album = track['track']['album']['name']
         src = track['track']['album']['images'][2]['url']
         listen_count = 0
-
-        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
-                       "VALUES(?,?,?,?,?,?,?,?)",
-                       track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
+        
+        cursor2.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
+                    "VALUES(?,?,?,?,?,?,?,?)",
+                    track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
 
 
 def database_insert(username, access, playlists):
@@ -78,7 +86,7 @@ def database_insert(username, access, playlists):
     return
 
 
-@app.route("/start", methods=['GET' , 'POST'])
+@app.route("/start", methods=['GET', 'POST'])
 def index():
     global USERNAME
     global sp
@@ -96,51 +104,51 @@ def index():
                 if count == 0:
                     playlsts = playlsts + (playlist['name'] + "|" + playlist["images"][0]['url'])
                 else:
-                    playlsts = playlsts + (";" + playlist['name']+"|"+playlist["images"][0]['url'])
+                    playlsts = playlsts + (";" + playlist['name'] + "|" + playlist["images"][0]['url'])
                 count = count + 1
         data['playlists'] = playlsts
-
+        
         return json.dumps(data)
     return
 
 
-@app.route("/refresh", methods=['GET' , 'POST'])
+@app.route("/refresh", methods=['GET', 'POST'])
 def refresh():
     if request.method == "POST":
         refresh_url = "https://accounts.spotify.com/api/token"  # from the docs
-
+        
         payload = {
             'refresh_token': access_info['refresh_token'],
             'grant_type': 'refresh_token'
         }
-
+        
         auth_header = base64.b64encode(six.text_type(CLIENT_ID + ':' + CLIENT_SECRET).encode('ascii'))
         headers = {'Authorization': 'Basic %s' % auth_header.decode('ascii')}
-
+        
         response = requests.post(refresh_url, data=payload, headers=headers)
-
+        
         token_info = response.json()
         return json.dumps(token_info)
     return render_template("main.html")
 
 
-@app.route("/playlists", methods=['GET' , 'POST'])
+@app.route("/playlists", methods=['GET', 'POST'])
 def get_playlists():
     global sp
     if request.method == "GET":
         sp = spotipy.Spotify(auth=access_info["access_token"])
         playlists = sp.user_playlists(USERNAME)
-        playlsts=''
+        playlsts = ''
         for playlist in playlists['items']:
             if playlist['owner']['id'] == USERNAME:
                 print()
-                playlsts = playlsts+(";"+playlist['name'])
+                playlsts = playlsts + (";" + playlist['name'])
                 print(playlist['name'])
         return playlsts
     return
 
 
-@app.route("/confirm", methods=['GET','POST'])
+@app.route("/confirm", methods=['GET', 'POST'])
 def confirm_selection():
     global selectedPlaylist
     global sp
@@ -152,7 +160,7 @@ def confirm_selection():
         for p in playlists['items']:
             if p['owner']['id'] == USERNAME:
                 if p["name"] == playlist:
-                    print("selected playlist "+p['name'])
+                    print("selected playlist " + p['name'])
                     results = sp.user_playlist(USERNAME, p['id'], fields="tracks,next")
                     tracks = results['tracks']
                     data['tracks'] = tracks
@@ -161,10 +169,10 @@ def confirm_selection():
                     print(selectedPlaylist)
                     selectedPlaylist = json.loads(selectedPlaylist)
                     return selectedPlaylist
-
+    
     if request.method == "GET":
         if selectedPlaylist is not None:
-            print('returning '+selectedPlaylist['playlist']['name'])
+            print('returning ' + selectedPlaylist['playlist']['name'])
             return selectedPlaylist
 
 
@@ -180,7 +188,7 @@ def stats():
         for row in cursor.fetchall():
             return_data.append({"id": row.ID, "title": row.title, "artist": row.artist, "album": row.album,
                                 "date added": row.dateAdded, "listen count": row.listenCount, "src": row.albumImg})
-
+        
         return json.dumps({"tracks": return_data})
 
 
@@ -192,7 +200,7 @@ def main_page():
     if request.method == "POST":
         data = {}
         username_url = "https://api.spotify.com/v1/me"
-
+        
         if access_info is None:
             code = request.form["code"]
             token_info = ""
@@ -215,7 +223,7 @@ def main_page():
         username = username_json['display_name']
         USERNAME = username
         data['username'] = username
-
+        
         playlists = sp.user_playlists(username)
         playlsts = ''
         print("Getting playlists")
@@ -228,9 +236,9 @@ def main_page():
                     playlsts = playlsts + (";" + playlist['name'] + "|" + playlist["images"][0]['url'])
                 count = count + 1
         data['playlists'] = playlsts
-
+        
         playlistData = {}
-        cursor.execute("SELECT * FROM UserInfo WHERE username='"+username+"'")
+        cursor.execute("SELECT * FROM UserInfo WHERE username='" + USERNAME + "'")
         backupPlaylist = None
         fetch = cursor.fetchone()
         if fetch.mainPlaylistURI is None:
@@ -240,14 +248,10 @@ def main_page():
         if fetch.backupPlaylistURI is not None:
             backupPlaylistId = fetch.backupPlaylistURI
             backupPlaylist = sp.user_playlist(USERNAME, backupPlaylistId)
-
-
-
-
-
-        #t1 = threading.Thread(target=database_insert, args=(username, access_info, playlists))
-        #t1.start()
-
+        
+        # t1 = threading.Thread(target=database_insert, args=(username, access_info, playlists))
+        # t1.start()
+        
         playlistData['mainPlaylist'] = mainPlaylist
         if backupPlaylist is not None:
             playlistData['backupPlaylist'] = backupPlaylist
@@ -270,24 +274,24 @@ def submit():
         type = james['type']
         name = james['username']
         playlistId = james['playlistId']
-
+        
         if type == 'main':
             cursor.execute("SELECT mainPlaylistURI FROM UserInfo WHERE username = ?", name)
             current_main_playlist_id = cursor.fetchone().mainPlaylistURI
-
+            
             cursor.execute("DELETE FROM Song WHERE playlistURI = ?", current_main_playlist_id)
             cursor.execute("UPDATE UserInfo SET mainPlaylistURI = ?", playlistId)
-
+            
             results = sp.user_playlist_tracks(name, playlistId)
             tracks_dict = results['items']
-
+            
             while results['next']:
                 results = sp.next(results)
                 tracks_dict.extend(results['items'])
-
+            
             t1 = threading.Thread(target=database_update, args=(tracks_dict, playlistId))
             t1.start()
-
+        
         else:
             cursor.execute("UPDATE UserInfo SET backupPlaylistURI = ? WHERE username = ?", playlistId, name)
         return json.dumps({})
@@ -301,10 +305,9 @@ def settings():
         song_cap = james['song cap']
         grace_period = james['grace period']
         name = james['user']
-
+        
         cursor.execute("UPDATE UserInfo SET songCap = ?, minDays = ? WHERE username = ?", song_cap, grace_period, name)
         return json.dumps({})
-
 
 
 @app.route("/recommended", methods=['GET'])
@@ -326,17 +329,15 @@ def recommend():
             if count == 0:
                 top_list = top_list + x['id']
             else:
-                top_list = top_list+","+x['id']
-            count = count+1
+                top_list = top_list + "," + x['id']
+            count = count + 1
         url = "https://api.spotify.com/v1/recommendations?"
-        url = url + "seed_tracks="+top_list + "&" + "market=US"
-        header = {'Authorization':'Bearer %s' % t}
-        response = requests.get(url=url,headers=header)
+        url = url + "seed_tracks=" + top_list + "&" + "market=US"
+        header = {'Authorization': 'Bearer %s' % t}
+        response = requests.get(url=url, headers=header)
         r = response.json()
         return json.dumps(r)
 
 
 if __name__ == '__main__':
     app.run()
-
-
