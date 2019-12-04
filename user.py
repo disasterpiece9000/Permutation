@@ -1,3 +1,5 @@
+import time
+import pyodbc
 import spotipy
 from spotipy import oauth2
 import configparser
@@ -26,7 +28,7 @@ def get_uri(uri, delimiter_num):
 
 
 class User:
-    def __init__(self, username, playlist_uri, backup_playlist, song_cap, min_days, lastListenTime, token_info):
+    def __init__(self, username, playlist_uri, backup_playlist, song_cap, min_days, lastListenTime, token_info, conn):
         self.username = username
         self.playlist_uri = playlist_uri
         self.backup_playlist = backup_playlist
@@ -35,7 +37,18 @@ class User:
         self.token_info = token_info
         self.last_listen_time = lastListenTime
         self.playlist_track_IDs = None
+        self.conn = conn
+        self.sp_oauth = spotipy.oauth2.SpotifyOAuth(client_id=CLIENT_ID, client_secret=CLIENT_SECRET,
+                                                    redirect_uri=REDIRECT_URI, scope=SCOPE)
     
     # Authorize for the account specified in the user.py file
     def get_token(self):
-        return spotipy.Spotify(auth=self.token_info["access token"])
+        if self.token_info["expires_at"] < int(time.time() + 600):
+            self.token_info = self.sp_oauth.refresh_access_token(self.token_info["refresh_token"])
+            cursor = self.conn.cursor()
+            update_str = "UPDATE UserInfo " \
+                         "SET authToken = ?, tokenExpiration = ? " \
+                         "WHERE username = ?"
+            cursor.execute(update_str, self.token_info["access_token"], self.token_info["expires_at"], self.username)
+
+        return spotipy.Spotify(auth=self.token_info["access_token"])
