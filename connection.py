@@ -43,12 +43,11 @@ def database_update(tracks_dict, playlistId):
         name = track['track']['name']
         artist = track['track']['artists'][0]['name']
         album = track['track']['album']['name']
-        src = track['track']['album']['images'][2]['url']
         listen_count = 0
 
-        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
-                       "VALUES(?,?,?,?,?,?,?,?)",
-                       track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
+        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI) "
+                       "VALUES(?,?,?,?,?,?,?)",
+                       track_id, name, artist, album, int(time.time()), listen_count, playlistId)
 
 
 def database_insert(username, access, playlists):
@@ -179,7 +178,7 @@ def stats():
         return_data = []
         for row in cursor.fetchall():
             return_data.append({"id": row.ID, "title": row.title, "artist": row.artist, "album": row.album,
-                                "date added": row.dateAdded, "listen count": row.listenCount, "src": row.albumImg})
+                                "date added": row.dateAdded, "listen count": row.listenCount})
 
         return json.dumps({"tracks": return_data})
 
@@ -285,8 +284,9 @@ def submit():
                 results = sp.next(results)
                 tracks_dict.extend(results['items'])
 
-            t1 = threading.Thread(target=database_update, args=(tracks_dict, playlistId))
-            t1.start()
+            #t1 = threading.Thread(target=database_update, args=(tracks_dict, playlistId))
+            #t1.start()
+            database_update(tracks_dict,playlistId)
 
         else:
             cursor.execute("UPDATE UserInfo SET backupPlaylistURI = ? WHERE username = ?", playlistId, name)
