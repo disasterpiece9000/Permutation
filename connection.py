@@ -1,4 +1,6 @@
 import base64
+import time
+
 from flask import Flask, request, render_template
 from flask_cors import CORS
 import requests
@@ -33,6 +35,20 @@ if conn:
 else:
     print("error")
 cursor = conn.cursor()
+
+
+def database_update(tracks_dict, playlistId):
+    for track in tracks_dict:
+        track_id = track['track']['id']
+        name = track['track']['name']
+        artist = track['track']['artists'][0]['name']
+        album = track['track']['album']['name']
+        src = track['track']['album']['images'][2]['url']
+        listen_count = 0
+
+        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
+                       "VALUES(?,?,?,?,?,?,?,?)",
+                       track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
 
 
 def database_insert(username, access, playlists):
@@ -70,6 +86,7 @@ def index():
     if request.method == "POST":
         data = {}
         username = USERNAME
+        data['username'] = USERNAME
         playlists = sp.user_playlists(username)
         playlsts = ''
         print("Getting playlists")
@@ -82,6 +99,7 @@ def index():
                     playlsts = playlsts + (";" + playlist['name']+"|"+playlist["images"][0]['url'])
                 count = count + 1
         data['playlists'] = playlsts
+
         return json.dumps(data)
     return
 
@@ -121,6 +139,7 @@ def get_playlists():
         return playlsts
     return
 
+
 @app.route("/confirm", methods=['GET','POST'])
 def confirm_selection():
     global selectedPlaylist
@@ -147,6 +166,22 @@ def confirm_selection():
         if selectedPlaylist is not None:
             print('returning '+selectedPlaylist['playlist']['name'])
             return selectedPlaylist
+
+
+@app.route("/stats", methods=['POST'])
+def stats():
+    if request.method == 'POST':
+        data = request.get_json(force=True)
+        username = USERNAME
+        cursor.execute("SELECT ID, title, artist, album, dateAdded, listenCount "
+                       "FROM UserInfo JOIN Song ON UserInfo.mainPlaylistURI = song.playlistURI "
+                       "WHERE username = ?", username)
+        return_data = []
+        for row in cursor.fetchall():
+            return_data.append({"id": row.ID, "title": row.title, "artist": row.artist, "album": row.album,
+                                "date added": row.dateAdded, "listen count": row.listenCount, "src": row.albumImg})
+
+        return json.dumps({"tracks": return_data})
 
 
 @app.route("/main", methods=['POST'])
@@ -193,54 +228,83 @@ def main_page():
                     playlsts = playlsts + (";" + playlist['name'] + "|" + playlist["images"][0]['url'])
                 count = count + 1
         data['playlists'] = playlsts
-        cursor.execute("SELECT * FROM UserInfo WHERE username='"+username+"'")
-        mainPlaylistURI = cursor.fetchone().mainPlaylistURI
-        backupPlaylistURI = cursor.fetchone().backupPlaylistURI
-        mainPlaylist=None
-        backupPlaylist=None
-        for playlist in playlists:
-            if mainPlaylistURI == playlist['name']:
-                mainPlaylist = playlist
-            if backupPlaylistURI == playlist['name']:
-                backupPlaylist = playlist
 
-        t1 = threading.Thread(target=database_insert, args=(username, access_info, playlists))
-        t1.start()
-        if mainPlaylist is None:
-            return None
         playlistData = {}
+        cursor.execute("SELECT * FROM UserInfo WHERE username='"+username+"'")
+        backupPlaylist = None
+        fetch = cursor.fetchone()
+        if fetch.mainPlaylistURI is None:
+            return json.dumps(playlistData)
+        mainPlaylistId = fetch.mainPlaylistURI
+        mainPlaylist = sp.user_playlist(USERNAME, mainPlaylistId)
+        if fetch.backupPlaylistURI is not None:
+            backupPlaylistId = fetch.backupPlaylistURI
+            backupPlaylist = sp.user_playlist(USERNAME, backupPlaylistId)
+
+
+
+
+
+        #t1 = threading.Thread(target=database_insert, args=(username, access_info, playlists))
+        #t1.start()
+
         playlistData['mainPlaylist'] = mainPlaylist
-        playlistData['backupPlaylist'] = backupPlaylist
+        if backupPlaylist is not None:
+            playlistData['backupPlaylist'] = backupPlaylist
+        else:
+            playlistData['backupPlaylist'] = 'none'
+        cursor.execute("SELECT songCap, minDays FROM UserInfo WHERE username = ?", username)
+        data = cursor.fetchone()
+        playlistData['songCap'] = data.songCap
+        playlistData['gracePeriod'] = data.minDays
+        playlistData['username'] = username
         return json.dumps(playlistData)
+    return
 
 
-@app.route("/recommended", methods=['GET'])
-def recommend():
-    print("sending rocommended")
-    if request.method == "GET":
-        t = access_info["access_token"]
-        results = sp.current_user_top_tracks(limit=5, time_range='short_term')
-        tracks_dict = results['items']
-        while results['next']:
-            results = sp.next(results)
-            tracks_dict.extend(results['items'])
-        top_list = ""
-        count = 0
-        test = ""
-        for x in tracks_dict:
-            if count > 4:
-                continue
-            if count == 0:
-                top_list = top_list + x['id']
-            else:
-                top_list = top_list+","+x['id']
-            count = count+1
-        url = "https://api.spotify.com/v1/recommendations?"
-        url = url + "seed_tracks="+top_list + "&" + "market=US"
-        header = {'Authorization':'Bearer %s' % t}
-        response = requests.get(url=url,headers=header)
-        r = response.json()
-        return json.dumps(r)
+@app.route("/submit", methods=['POST'])
+def submit():
+    if request.method == 'POST':
+        james = request.get_json(force=True)
+        print(james['type'])
+        type = james['type']
+        name = james['username']
+        playlistId = james['playlistId']
+
+        if type == 'main':
+            cursor.execute("SELECT mainPlaylistURI FROM UserInfo WHERE username = ?", name)
+            current_main_playlist_id = cursor.fetchone().mainPlaylistURI
+
+            cursor.execute("DELETE FROM Song WHERE playlistURI = ?", current_main_playlist_id)
+            cursor.execute("UPDATE UserInfo SET mainPlaylistURI = ?", playlistId)
+
+            results = sp.user_playlist_tracks(name, playlistId)
+            tracks_dict = results['items']
+
+            while results['next']:
+                results = sp.next(results)
+                tracks_dict.extend(results['items'])
+
+            t1 = threading.Thread(target=database_update, args=(tracks_dict, playlistId))
+            t1.start()
+
+        else:
+            cursor.execute("UPDATE UserInfo SET backupPlaylistURI = ? WHERE username = ?", playlistId, name)
+        return json.dumps({})
+
+
+@app.route("/settings", methods=['POST'])
+def settings():
+    if request.method == 'POST':
+        james = request.get_json()
+        print(str(james))
+        song_cap = james['song cap']
+        grace_period = james['grace period']
+        name = james['user']
+
+        cursor.execute("UPDATE UserInfo SET songCap = ?, minDays = ? WHERE username = ?", song_cap, grace_period, name)
+        return json.dumps({})
+
 
 
 @app.route("/recommended", methods=['GET'])
