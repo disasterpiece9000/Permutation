@@ -55,8 +55,8 @@ def database_update(tracks_dict, playlistId):
         listen_count = 0
         
         cursor2.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
-                    "VALUES(?,?,?,?,?,?,?,?)",
-                    track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
+                        "VALUES(?,?,?,?,?,?,?,?)",
+                        track_id, name, artist, album, int(time.time()), listen_count, playlistId, src)
 
 
 def database_insert(username, access, playlists):

@@ -38,24 +38,6 @@ def get_user():
                 row.songCap, row.minDays, row.lastListenTime, token_info, conn)
 
 
-# Read the playlist info and store the tracks in a nested dict/json file
-def initialize_playlist(user_obj):
-    playlist = get_playlist_tracks(user_obj)
-    for track in playlist:
-        track_id = track['track']['id']
-        name = track['track']['name']
-        artist = track['track']['artists'][0]['name']
-        album = track['track']['album']['name']
-        listen_count = 0
-        
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO Song (ID, title, artist, album, dateAdded, listenCount, playlistURI) "
-                       "VALUES(?,?,?,?,?,?,?)",
-                       track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
-    
-    print('User: ' + user_obj.username + "\nDatabase populated with songs from main playlist")
-
-
 # Check for new songs added to playlist
 def check_songs(user_obj):
     # Get updated tracklist
@@ -75,11 +57,13 @@ def check_songs(user_obj):
             name = track['track']['name']
             artist = track['track']['artists'][0]['name']
             album = track['track']['album']['name']
+            album_img = track['track']['album']['images'][2]['url']
             listen_count = 0
             
-            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI) "
-                           "VALUES(?,?,?,?,?,?,?)",
-                           track_id, name, artist, album, int(time.time()), listen_count, user_obj.playlist_uri)
+            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
+                           "VALUES(?,?,?,?,?,?,?,?)",
+                           track_id, name, artist, album, int(time.time()), listen_count,
+                           user_obj.playlist_uri, album_img)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
                   "Name: " + name + "\n\tArtist: " + artist + line)
@@ -203,46 +187,29 @@ def trim_playlist(user_obj):
 
 
 # Main method
-# Initialize a new user
-if sys.argv[1] == "init":
-    target_user = sys.argv[2]
+# Run continuously through all users
+while True:
     all_users = get_all_users()
-    for username in all_users:
-        # If the user has been created, initialize the playlist data
-        if username.lower() == target_user.lower():
+    try:
+        # Iterate through all users
+        for username in all_users:
             user = get_user()
             sp = user.get_token()
-            initialize_playlist(user)
-            print(user.username + " was initialized\nExiting now...")
-            sys.exit(0)
-    
-    print("User: " + target_user + "\tThat user was not found. Please make sure they have a folder and .ini file")
-    sys.exit(0)
-
-# Run continuously through all users
-elif sys.argv[1] == "auto":
-    while True:
-        all_users = get_all_users()
-        try:
-            # Iterate through all users
-            for username in all_users:
-                user = get_user()
-                sp = user.get_token()
-                
-                # Process listens
-                try:
-                    check_songs(user)
-                    check_recently_played(user)
-                    trim_playlist(user)
-                
-                # Fetch a new token when the old one expires
-                except spotipy.client.SpotifyException as e:
-                    print("Error: " + str(e))
-                    continue
             
-            time.sleep(60)
+            # Process listens
+            try:
+                check_songs(user)
+                check_recently_played(user)
+                trim_playlist(user)
+            
+            # Fetch a new token when the old one expires
+            except spotipy.client.SpotifyException as e:
+                print("Error: " + str(e))
+                continue
         
-        except ConnectionError:
-            print("Connection Error: Sleeping for 1 min" + line)
-            time.sleep(60)
-            continue
+        time.sleep(60)
+    
+    except ConnectionError:
+        print("Connection Error: Sleeping for 1 min" + line)
+        time.sleep(60)
+        continue
