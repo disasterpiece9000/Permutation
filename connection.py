@@ -181,7 +181,7 @@ def stats():
     if request.method == 'POST':
         data = request.get_json(force=True)
         username = USERNAME
-        cursor.execute("SELECT ID, title, artist, album, dateAdded, listenCount "
+        cursor.execute("SELECT ID, title, artist, album, dateAdded, listenCount, albumImg "
                        "FROM UserInfo JOIN Song ON UserInfo.mainPlaylistURI = song.playlistURI "
                        "WHERE username = ?", username)
         return_data = []
