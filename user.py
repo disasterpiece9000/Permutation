@@ -43,7 +43,7 @@ class User:
     
     # Authorize for the account specified in the user.py file
     def get_token(self):
-        if self.token_info["expires_at"] < int(time.time() + 600):
+        if self.token_info["expires_at"] is None or self.token_info["expires_at"] < int(time.time() + 600):
             self.token_info = self.sp_oauth.refresh_access_token(self.token_info["refresh_token"])
             cursor = self.conn.cursor()
             update_str = "UPDATE UserInfo " \

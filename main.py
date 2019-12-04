@@ -54,16 +54,25 @@ def check_songs(user_obj):
         
         # If a track is in the playlist and not in playlist_data then add it
         if track_id not in stored_track_ids:
+            if track_id is None:
+                continue
+                
             name = track['track']['name']
             artist = track['track']['artists'][0]['name']
             album = track['track']['album']['name']
-            album_img = track['track']['album']['images'][2]['url']
+            try:
+                album_img = track['track']['album']['images'][2]['url']
+            except IndexError:
+                album_img = "alt.png"
+            audio = track["track"]["preview_url"]
+            
             listen_count = 0
             
-            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, playlistURI, albumImg) "
-                           "VALUES(?,?,?,?,?,?,?,?)",
+            cursor.execute("INSERT INTO Song(ID, title, artist, album, dateAdded, listenCount, "
+                           "playlistURI, albumImg, audioSrc) "
+                           "VALUES(?,?,?,?,?,?,?,?,?)",
                            track_id, name, artist, album, int(time.time()), listen_count,
-                           user_obj.playlist_uri, album_img)
+                           user_obj.playlist_uri, album_img, audio)
             
             print('User: ' + user_obj.username + '\tNew track found\n\t' +
                   "Name: " + name + "\n\tArtist: " + artist + line)
@@ -101,11 +110,8 @@ def check_recently_played(user_obj):
     try:
         new_last_listen = int(dateutil.parser.parse(results[0]['played_at']).timestamp())
     except TypeError:
-        print("User: " + user_obj.username + "\tError: Nothing returned for recently played" + line)
+        print("User: " + user_obj.username + "Nothing returned for recently played" + line)
         return
-    
-    print("\nOld last listen: " + str(user_obj.last_listen_time) +
-          "\nNew last listen: " + str(new_last_listen) + "\n")
     
     for track in results:
         track_last_played = int(dateutil.parser.parse(track['played_at']).timestamp())
@@ -207,7 +213,7 @@ while True:
                 print("Error: " + str(e))
                 continue
         
-        time.sleep(60)
+        time.sleep(5)
     
     except ConnectionError:
         print("Connection Error: Sleeping for 1 min" + line)
