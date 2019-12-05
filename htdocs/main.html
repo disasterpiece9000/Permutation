@@ -27,15 +27,18 @@
             </tbody>
         </table>
 
-        <table class="selectorTable">
+        <table class="selectorTable" id="selectorTable" style="visibility: hidden;">
             <tbody>
                 <tr>
-                    <td style="text-align: right; color: white;">Song Cap</td>
-                    <td><input type="number" id="cap" class="numSelector"></td>
+                    <td style="text-align: left; color: white; padding-left: 37%; padding-bottom: 20px;">Settings</td>
                 </tr>
                 <tr>
-                    <td style="text-align: right; color: white;">Grace Period (days)</td>
-                    <td><input type="number" id="grace" class="numSelector"></td>
+                    <td class="numTd" style="text-align: center; color: white;">Song Cap</td>
+                    <td class="numTd"><input type="number" id="cap" class="numSelector"></td>
+                </tr>
+                <tr>
+                    <td class="numTd" style="text-align: center; color: white;">Grace Period (days)</td>
+                    <td class="numTd"><input type="number" id="grace" class="numSelector"></td>
                 </tr>
                 <tr>
                     <td>
@@ -46,6 +49,6 @@
             </tbody>
         </table>
         
-        <input type="button" class="selectPlaylistBtn" value="Select Playlist To Manage" onclick="location.href='selection.html'">
+        <input id="selectPlaylistBtn" type="button" style="margin-left: 41%; visibility: hidden;" class="selectPlaylistBtn" value="Select Playlist To Manage" onclick="location.href='selection.html'">
     </body>
     

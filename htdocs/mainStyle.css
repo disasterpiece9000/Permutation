@@ -10,7 +10,7 @@ img
 {
     padding: 20px;
     border-radius: 25px;
-    width: 80%;
+    
     height: 80%;
     margin-left: auto;
     margin-right: auto;
@@ -18,6 +18,7 @@ img
     text-align: start;
     font-size: 23px;
     display: table;
+    background-color: rgb(49, 49, 49);
 }
 .welcome
 {
@@ -32,6 +33,7 @@ img
     align-content: center;
     color: white;
 }
+
 .box 
 {
     
@@ -62,7 +64,7 @@ img
     border-radius: 12px;
     font-size: 18px;
     margin-top: 20px;
-    display: inline-block;
+    margin-left: 10px;
     text-align: center;
     margin-left: 43%;
     margin-right: 43%;
@@ -75,6 +77,19 @@ img
     height: 80%;
     margin-left: auto;
     margin-right: auto;
+    color: white;
+    text-align: start;
+    font-size: 23px;
+    display: table;
+}
+.confirmTopTable
+{
+    padding: 20px;
+    border-radius: 25px;
+    width: 80%;
+    height: 80%;
+    margin-left: 5%;
+    margin-right: 5%;
     color: white;
     text-align: start;
     font-size: 23px;
@@ -108,6 +123,13 @@ img
     font-size: 23px;
     display: table;
     border-spacing: 0px 1px;
+}
+.numTd
+{
+    padding: 10px;
+    display: table-cell;
+    border-right-color: grey;
+    border-right-width: 3px;
 }
 .confrimTr
 {

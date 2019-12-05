@@ -86,7 +86,7 @@ function getRecommended()
         recommendedRequest = new XMLHttpRequest();
         recommendedRequest.addEventListener(
             "readystatechange", setRecommended, false); 
-        recommendedRequest.open('GET','http://127.0.0.1:5000/recommended',true);
+        recommendedRequest.open('GET','http://127.0.0.1:5000/playRec',true);
         recommendedRequest.setRequestHeader('content-type', 'application/x-www-form-urlencoded;charset=UTF-8');
         recommendedRequest.send(null);
     }

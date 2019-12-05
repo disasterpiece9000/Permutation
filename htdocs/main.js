@@ -51,6 +51,8 @@ function load()
             document.getElementById('noPlaylist').style.display = 'none';
         }
         document.getElementById('managedPlaylist').style.visibility = 'visible';
+        document.getElementById('selectorTable').style.visibility = 'visible';
+        document.getElementById('selectPlaylistBtn').style.visibility = 'visible';
         console.log(playlistData['backupPlaylist']);
         if(playlistData['backupPlaylist']!='none')
         {
@@ -116,8 +118,13 @@ function createBox(top,src, title)
     img.style.marginRight = "auto";
     img.style.display = "block";
     img.setAttribute("id","img"+title);
+    console.log(top);
+    if(top == "Managed Playlist")
+    {
+        img.setAttribute("onclick","location.href='stats.html'");
+    }
     img.setAttribute("onerror","this.src=\"alt.png\"");
-    img.setAttribute("onclick","location.href='stats.html'");
+    
     img.style.userSelect = "none";
     var topTitle = document.createElement('h3');
     topTitle.innerHTML = top;

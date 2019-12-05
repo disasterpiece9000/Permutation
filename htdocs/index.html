@@ -7,14 +7,30 @@ html {
     background-size: cover;
     background-attachment:fixed;
     background:
-    linear-gradient(to bottom right,rgb(49, 49, 49),plum, lightblue,rgb(49, 49, 49));
+    linear-gradient(to bottom right,rgb(49, 49, 49) 5%,plum 45%, rgb(120, 162, 240) 70%,rgb(49, 49, 49));
     
 }
 p {
     font-size: 20px;
     color: white;
 }
-h1 {
+.indexExplination
+{
+    padding-top: 3px;
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-bottom: 2px;
+    border-radius: 25px;
+    margin-left: 24vw;
+    margin-right: 25vw;
+    width: 50vw;
+    color: white;
+    text-align: center;
+    font-size: 23px;
+    display: block;
+    background-color: rgb(49, 49, 49, 0.7);
+}
+.h1 {
         border-radius: 25px;
         background: linear-gradient(to right,rgb(44, 44, 44),rgb(66, 66, 66) 10%, rgb(66, 66, 66) 90%,rgb(44, 44, 44));
         margin-top: 1in;
@@ -32,19 +48,26 @@ h1 {
 </head>
 <body>
     <p><img src="spotifylogo.png" align="middle" style="width: 50px; height: 50px;">Permutation</p>
-    
-    <center>
-        <h1>Please Login To Continue</h1>
-        <form>
-            <input id="loginButton" style="background-color: green;
-            color: white;
-            padding: 12px 32px;
-            border-color: green;
-            border-radius: 12px;
-            font-size: 18px;
-            " type="button" value="Login" onclick="location.href='https://accounts.spotify.com/en/authorize?client_id=56a50cf4ff574e438f3e1858604a780a&response_type=code&redirect_uri=http:%2F%2Flocalhost:8080%2Fmain.html&scope=playlist-modify-private%20playlist-modify-public%20user-read-recently-played%20user-top-read&show_dialog=True'">
-        </form>
-    </center>
+    <div class="indexExplination">
+        <h1 style="font-size: 50px;">
+            Welcome to Permutation
+        </h1>
+        <h4>
+            Permutation automatically manages the size of your playlists and gives you recommendations based on the songs you love most.
+        </h4>
+        <h6 style="margin-bottom: 10px;">
+            Click below to continue to spotify login page
+        </h6>
+        <form style="padding-bottom: 10px;">
+                <input id="loginButton" style="background-color: green;
+                color: white;
+                padding: 12px 32px;
+                border-color: green;
+                border-radius: 12px;
+                font-size: 18px;
+                " type="button" value="Login" onclick="location.href='https://accounts.spotify.com/en/authorize?client_id=56a50cf4ff574e438f3e1858604a780a&response_type=code&redirect_uri=http:%2F%2Flocalhost:8080%2Fmain.html&scope=playlist-modify-private%20playlist-modify-public%20user-read-recently-played%20user-top-read&show_dialog=True'">
+            </form>
+    </div>
     
 </body>
 <body>
